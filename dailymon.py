@@ -10,18 +10,23 @@ from pyspherematch import *
 from scipy.ndimage.filters import gaussian_filter1d,uniform_filter1d
 import calendar
 
+plt.switch_backend('agg')
+
 text_font = {'fontname':'Arial', 'size':'9'}
 color_list = ['red','blue','green','brown','cyan','magenta','gold','orange','yellow']
 
 def setRedux():
     try:
-        BossSpectroRedux = os.environ('BOSS_SPECTRO_REDUX')
-        version = sorted(glob.glob(os.path.join(BossSpectroRedux,'v5_*')))[-1]
-        BossSpectroRedux = os.path.join(BossSpectroRedux,version)
-        spAllfile = os.path.join(BossSpectroRedux,'spAll-'+version+'.fits')
+        #BossSpectroRedux = '/uufs/chpc.utah.edu/common/home/sdss/ebosswork/eboss/spectro/redux'#os.environ['BOSS_SPECTRO_REDUX']
+        BossSpectroRedux = os.environ['BOSS_SPECTRO_REDUX']
     except:
         BossSpectroRedux = '.'
-        spAllfile= sorted(glob.glob('spAll-v5*.fits'))[-1]
+    if BossSpectroRedux == '.':
+        spAllfile= sorted(glob.glob('spAll-v5_1*.fits'))[-1]
+    else:    
+        version = os.path.basename(sorted(glob.glob(os.path.join(BossSpectroRedux,'v5_10*')))[-1])
+        BossSpectroRedux = os.path.join(BossSpectroRedux,version)
+        spAllfile = 'spAll-'+version+'.fits'
     return BossSpectroRedux,spAllfile
 
 def init_plotting():
@@ -74,38 +79,41 @@ def download_spectra(plate, mjd, fiber, dirname='.'):
         #print mv_cmd
         os.system(mv_cmd)
 
+def outPlates(mjd,platelist,status):
+    uniqmjd = sorted(np.unique(platelist['MJD']),reverse=True)
+    plates = platelist[np.where(platelist['MJD'] == mjd)[0]]
+    done = plates[np.where(plates['STATUS1D'] == 'Done')[0]]
+    doneplates = plates[np.where(plates['STATUS1D'] == 'Done')[0]]['PLATE']
+
+    if (len(plates) != len(done)) | (len(done) < 1):
+        for m in range(len(uniqmjd)):
+            mjd = uniqmjd[m+21]
+            plates = platelist[np.where(platelist['MJD'] == mjd)[0]]
+            done = plates[np.where(plates['STATUS1D'] == 'Done')[0]]
+            doneplates = plates[np.where(plates['STATUS1D'] == 'Done')[0]]['PLATE']
+            if not (len(plates) != len(done)) | (len(done) < 1):
+                break
+        for pl in plates:
+            status.append('Plate: {} ({})'.format(pl['PLATE'],pl['PROGRAMNAME']))
+
+    else:
+        for pl in plates:
+            status.append('Plate: {} ({})'.format(pl['PLATE'],pl['PROGRAMNAME']))
+    return mjd,doneplates,status
+
 def readPlateList(platelistfile='platelist.fits'):
     platelistdir,dummyname = setRedux()  # Update with correct path to $BOSS_SPECTRO_REDUX
-    comments =list()#;    comments.append(' ')
     status=list() #;status.append(' ')
     wait_flag=False ; noplates_flag = False
     platelist= fits.open(os.path.join(platelistdir,platelistfile))[1].data
     mjd = sorted(platelist['MJD'])[-1]
+    mjd,doneplates,status = outPlates(mjd,platelist,status)
     #print 'Working on MJD :',mjd
-    if not os.path.exists(os.path.join('HTML',str(mjd),'balmonitor_'+str(mjd)+'.html')):
-        plates = platelist[np.where(platelist['MJD'] == mjd)[0]]
-        for pl in plates:
-            status.append('Plate: {} ({})'.format(pl['PLATE'],pl['PROGRAMNAME']))
-     #   print plates['STATUS1D']
-        done = plates[np.where(plates['STATUS1D'] == 'Done')[0]]
-        doneplates = plates[np.where(plates['STATUS1D'] == 'Done')[0]]['PLATE']
-        if len(plates) != len(done):
-            wait_flag = True
-            doneplates= -999
-            status.append('Pipeline is still running on MJD: {} '.format(mjd))
-        elif len(done) < 1:
-            noplates_flag = True
-            doneplates= -999
-            status.append('Pipeline has  finished running on MJD: {}, But, found no plates. '.format(mjd))
-        else:
-            qsoplates = done[np.where(done['PROGRAMNAME'] == 'eboss')[0]]['PLATE']
-      #      print 'Plates observed on MJD: {}  are {}'.format(mjd,qsoplates)
-            comments.append('Full Pipeline has only finished processing up to {} i.e, {}. '.format(mjd,convertMJD(mjd)))
-            comments.append('There are {} LRG/QSO plates'.format(len(qsoplates)))
-    else:
-        doneplates=-9999
+    if  os.path.exists(os.path.join('HTML',str(mjd),'balmonitor_'+str(mjd)+'.html')):
         wait_flag =True
-    return mjd,doneplates,comments,status,wait_flag,noplates_flag
+        status=list()
+        status.append('Last MJD with BALs = {}. BalMonitor has already seen this MJD'.format(mjd))
+    return mjd,doneplates,status,wait_flag
 
 
 def readSpAllfile(plateid):
@@ -114,7 +122,7 @@ def readSpAllfile(plateid):
     #print spAll.columns.names
     platematch = spAll[np.where(spAll['PLATE'] == plateid)[0]]
     balindex = np.where(platematch['EBOSS_TARGET2'] & 2**25)[0]
-    #print balindex
+    print balindex
     return  platematch['FIBERID'][balindex],platematch['RA'][balindex],platematch['DEC'][balindex],platematch['Z'][balindex]
 
 def sphereMatch(ra, dec, tol=0.00001):
@@ -130,7 +138,7 @@ def sphereMatch(ra, dec, tol=0.00001):
 
 
 
-def makehtml(mjd, status, comments):
+def makehtml(mjd, status):
     images = glob.glob('HTML/{}/balmonitor*.jpeg'.format(mjd))
     html = list()
     html.append('<html><body style="font-family: helvetica; font-size:10">')
@@ -153,7 +161,6 @@ def makehtml(mjd, status, comments):
         #- Break between plates
     html.append('</ul>')    
     html.append('</div>')
-    #html.append('<h5>%s</h5>' % (comments))
     html.append('</body>')
     html.append('</html>')
 
@@ -240,24 +247,25 @@ def plotSpectra(pplate, pmjd, pfiber, splate, smjd, sfiber, z):
 def ProgMain():
     currentmjd = int(currentMJD())
     
-    mjd, qplates, comments, status, wait_flag, noplates_flag = readPlateList()
-    #print 'This',status,comments,qplates
-    if   wait_flag | noplates_flag:
-        html=makehtml(mjd, status, comments)
+    mjd, qplates, status, wait_flag = readPlateList()
+    print 'This',status,qplates,wait_flag
+    if   wait_flag :
+        html=makehtml(mjd, status)
     else:
         for plate in qplates:
             fiber, ra, dec,z = readSpAllfile(plate)
+            print fiber
             if (len(fiber) < 1):
                 status.append('No BAL quasars included in Plate:{}'.format(plate))
-             #   print status,comments
-                html=makehtml(mjd, status, comments)
+             #   print status
+                html=makehtml(mjd, status)
             else:
                 for i in range(len(fiber)):
-              #      print plate,mjd,fiber[i],ra[i],dec[i],z[i]
+                    print plate,mjd,fiber[i],ra[i],dec[i],z[i]
                     dupplate,dupmjd,dupfiber=sphereMatch(ra[i],dec[i])
-               #     print 'PLATE-MJD-FIBER: {0}-{1}-{2} has {3} entries in DR14 '.format(plate,mjd,fiber[i],len(dupplate))
+                    print 'PLATE-MJD-FIBER: {0}-{1}-{2} has {3} entries in DR14 '.format(plate,mjd,fiber[i],len(dupplate))
                     plotSpectra(plate, mjd, fiber[i], dupplate, dupmjd, dupfiber, z[i])
-                    html=makehtml(mjd, status, comments)
+                    html=makehtml(mjd, status)
                     
     html_dir = os.path.join('HTML',str(mjd))
     html_cmd = 'mkdir {}'.format(html_dir)
@@ -273,7 +281,9 @@ def ProgMain():
         ln_cmd = 'ln -s {} {}'.format(htmlfile,latesthtmlfile)
         latestmjd = 'CurrentMJD'
         lndir_cmd = 'ln -s {} {}'.format(html_dir,latestmjd)
+        rmdir_cmd = 'rm {}'.format(latestmjd)
         os.system(rm_cmd)
+        os.system(rmdir_cmd)
         os.system(ln_cmd)
         os.system(lndir_cmd)
     return mjd
