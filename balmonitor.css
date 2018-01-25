@@ -1,0 +1,136 @@
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 40px;
+}
+
+
+
+
+h1 {
+    color: black;
+    font-family: Georgia;
+    font-size: 300%;
+    padding:10px;
+    margin-left: 35%;
+    margin-right:25%;
+    border: 5px solid;
+    border-radius: 15px;
+    border-color:red;
+    
+    
+
+}
+h2 {
+    color: black;
+    font-family: Georgia;
+    font-size: 200%;
+    padding:10px;
+    margin-left: 50%;
+    text-decoration:underline;
+}
+
+h3a {
+	color : white;
+	font-family: Arial;
+        font-size: 200%;
+        padding:10px;
+	text-decoration:underline;
+        position: relative;
+  	top: 3%;
+  	left: 50%;
+  	transform: translate(-50%, -3%);
+}
+
+
+a {
+    color: black;
+    font-family: Times New Roman;
+    font-size: 200%;
+    
+    
+}
+p  {
+    color: blue;
+    font-family: courier;
+    font-size: 160%;
+}
+a:link {
+    color: blue; 
+    background-color: transparent; 
+    text-decoration: none;
+}
+
+a:visited {
+    color: green;
+    background-color: transparent;
+    text-decoration: none;
+}
+
+a:hover {
+    color: red;
+    background-color: transparent;
+    text-decoration: underline;
+}
+
+a:active {
+    color: yellow;
+    background-color: transparent;
+    text-decoration: underline;
+}
+
+img {
+    display: block;
+    width = 50%
+    margin-left: auto;
+    margin-right: auto
+}
+hr { 
+    display: block;
+    margin-top: 0.5em;
+    margin-bottom: 0.5em;
+    margin-left: auto;
+    margin-right: auto;
+    border-style: inset;
+    border-width: 1px;
+}
+
+.imgframe
+    { background:#D652D9;
+    padding:12px;
+    border:1px solid #999; }
+
+   
+   
+   
+/* Create two unequal columns that floats next to each other */
+.column {
+    float: left;
+    padding: 10px;
+    height: 300px; /* Should be removed. Only for demonstration */
+}
+
+.left {
+  width: 25%;
+  background-color:lightgray;
+  height:800px;
+  top-margin:30px
+  border: 5px solid;
+  border-radius:54px;
+  border-color:red;
+}
+
+.right {
+  width: 75%;
+  height:500px;
+}
+
+/* Clear floats after the columns */
+.row:after {
+    content: "";
+    display: table;
+    clear: both;
+    text-align: center;
+}
