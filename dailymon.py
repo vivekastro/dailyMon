@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 import numpy as np
 from astropy.io import fits
 import scipy as sp
@@ -134,37 +136,60 @@ def sphereMatch(ra, dec, tol=0.00001):
         dupplate.append(dr14q['PLATE'][b[i]])
         dupmjd.append(dr14q['MJD'][b[i]])
         dupfiber.append(dr14q['FIBERID'][b[i]])
-    return dupplate,dupmjd,dupfiber
+    return dupplate,dupmjd,dupfiber,b[i]
 
 
+def makehtml(mjd, status, cat):
+	images = glob.glob('HTML/{}/balmonitor*.jpeg'.format(mjd))
+	html = list()
+	
+	html.append('<!DOCTYPE html>')
+	html.append('<html>')
+	html.append('<head>')
+	html.append('<link rel="stylesheet" type="text/css" href="../../balmonitor.css">')
+	html.append('</head>')
+	html.append('<body>')
+	html.append(' ')
+	html.append('<h1>MJD %d, night of %s</h1>' % (mjd, convertMJD(mjd)))
+	html.append('<hr>')
+	html.append('<a style="float: left; width: 5%0%;" href= "/Users/vzm83/BALQSO_DailyMonitor/HTML/"+%s+"balmonitor_"+%s+".html">Yesterday: MJD=%d </a>' %(str(mjd-1),str(mjd-mjd-1),mjd-1))
+	html.append('<a style="float: right; width: 50%%;text-align: right;"href= "/Users/vzm83/BALQSO_DailyMonitor/HTML/"+%s+"balmonitor_"+%s+".html"> Tomorrow: MJD=%d </a>' %(str(mjd+1),str(mjd+1),mjd+1))
+	html.append('<hr>')
+	html.append('<h2> Summary </h2>')
+	for statusmessage in status:
+	        html.append('<h3>%s</h3>' % (statusmessage))
+	
+	html.append('<hr>')
+	html.append(' ')
+	for image in images:
+		html.append('<div class="row">')
+		html.append('<div class="column left" "style="background-color:lightblue;" >')
+		html.append('<h3a> %s </br></h3a>' %(image.split('/')[2].split('_')[1]+'-'+str( mjd)+'-'+image.split('/')[2].split('_')[3].split('.')[0]))
+		match_string = image.split('/')[2].split('_')[1]+'_'+str( mjd)+'_'+image.split('/')[2].split('_')[3].split('.')[0]
+		for outer_key in cat:
+			cat_string = '{0}_{1}_{2}'.format(cat[outer_key]['plate'],cat[outer_key]['mjd'],cat[outer_key]['fiber'])
+			print match_string,cat_string
+			if cat_string == match_string:
+				cat1=cat[outer_key]
+				html.append('<p>RA : {0:8.4f} DEC : {1:8.4f}</p>'.format(cat1['ra'],cat1['dec']))
+				html.append('<p>Z : {0:8.4f} Z_VI : {1:8.4f}</p>'.format(cat1['z'],cat1['zvi']))
+				html.append('<p>MI : {0:8.4f} BI_CIV : {1:8.4f}</p>'.format(cat1['mi'],cat1['bi_civ']))
+				html.append('<p>u:{0:4.2f} g:{1:4.2f} r:{2:4.2f} i:{3:4.2f} z:{4:4.2f}</p>'.format(cat1['mag'][0],cat1['mag'][1],cat1['mag'][2],cat1['mag'][3],cat1['mag'][4]))
+				html.append('<p>N_SPEC : {}</p>'.format(cat1['nspec']))
+				html.append('<p>N_SPEC_BOSS : {} N_SPEC_SDSS : {}</p>'.format(cat1['nspec_boss'],cat1['nspec_sdss']))
+				html.append('<p>X-ray Flux(0.2-12 KeV) : {0:8.4f} FIRST-Flux : {1:8.4f}</p>'.format(cat1['xray_2to12kevflux'],cat1['first_flux']))
+				html.append('<p>NUV : {0:4.2f} FUV : {1:4.2f}</p>'.format(cat1['nuv'],cat1['fuv']))
+				html.append('<p>W1:{0:4.2f} W2:{1:4.2f} W3:{2:4.2f} W4:{3:4.2f} </p>'.format(cat1['w1'],cat1['w2'],cat1['w3'],cat1['w4']))
+				html.append('</div>')
+		html.append('<div class="column right" >')
+		html.append('<img  src="%s" width="85%%">' % (os.path.abspath(image)))
+		html.append('</div>')
+		html.append('</div>')
+	html.append('<hr>')
+	html.append('</body>')
+	html.append('</html>')
+	return "\n".join(html)
 
-def makehtml(mjd, status):
-    images = glob.glob('HTML/{}/balmonitor*.jpeg'.format(mjd))
-    html = list()
-    html.append('<html><body style="font-family: helvetica; font-size:10">')
-
-    style_table = "text-align:right; border: 1px solid lightgray; padding: 4px;"
-
-    html.append('<h1>MJD %d, night of %s</h1>' % (mjd, convertMJD(mjd)))
-    for statusmessage in status:
-        html.append('<h3>%s</h3>' % (statusmessage))
-    style_header = 'text-align:center;border:2px;background-color: lightblue; color: white;padding:5px;font-size:20'
-    html.append('<div>')    
-    html.append('<ul>')    
-    for image in images:
-        #- Header
-        html.append('<li style="%s">' % style_header)
-        html.append('<li>    Plate %s, MJD %d, Fiber  %s</li>' % (image.split('/')[2].split('_')[1], mjd, image.split('/')[2].split('_')[3].split('.')[0]))
-        #Images
-        #print image
-        html.append('<li>      <img src="%s" </li>' % (os.path.abspath(image)))
-        #- Break between plates
-    html.append('</ul>')    
-    html.append('</div>')
-    html.append('</body>')
-    html.append('</html>')
-
-    return "\n".join(html)
 
 def plotSpectra(pplate, pmjd, pfiber, splate, smjd, sfiber, z):
     
@@ -241,16 +266,49 @@ def plotSpectra(pplate, pmjd, pfiber, splate, smjd, sfiber, z):
     fig.savefig(savefilename)
     #plt.show()
 
-    
+
+def makeCatalog(nitem, dr14index, plate, mjd, fiber, cat):
+    outkey = 'target'+str(nitem)
+    dr14Q = fits.open('DR14Q_v4_4.fits')[1].data
+    cat[outkey] = {
+                   "plate": plate,
+                   "mjd" : mjd,
+                   "fiber" : fiber,
+                   "splate": dr14Q['PLATE'][dr14index],
+                   "smjd"  :  dr14Q['MJD'][dr14index],
+                   "sfiber" :  dr14Q['FIBERID'][dr14index],
+                   "ra"  :  dr14Q['RA'][dr14index],
+                   "dec" :  dr14Q['DEC'][dr14index],
+                   "z" : dr14Q['Z'][dr14index],
+                    "zvi" : dr14Q['Z_VI'][dr14index],
+                    "nspec" : dr14Q['N_SPEC'][dr14index],
+                    "nspec_boss" : dr14Q['N_SPEC_BOSS'][dr14index],
+                    "nspec_sdss" : dr14Q['N_SPEC_SDSS'][dr14index],
+                    "bi_civ" :  dr14Q['BI_CIV'][dr14index],
+                    "mag":  dr14Q['PSFMAG'][dr14index],
+                    "mi" : dr14Q['MI'][dr14index],
+                    "xray_2to12kevflux": dr14Q['FLUX_0.2_12.0keV'][dr14index],
+                    "first_flux" : dr14Q['FIRST_FLUX'][dr14index],
+                    "nuv" : dr14Q['NUV'][dr14index],
+                    "fuv" : dr14Q['FUV'][dr14index],
+                    "w1" :  dr14Q['W1MAG'][dr14index],
+                    "w2" :  dr14Q['W2MAG'][dr14index],
+                    "w3" :  dr14Q['W3MAG'][dr14index],
+                    "w4" :  dr14Q['W4MAG'][dr14index],
+                    }
+
+    return cat
+
+
     
 
 def ProgMain():
     currentmjd = int(currentMJD())
-    
+    cat = {}
     mjd, qplates, status, wait_flag = readPlateList()
     print 'This',status,qplates,wait_flag
     if   wait_flag :
-        html=makehtml(mjd, status)
+        html=makehtml(mjd, status,cat)
     else:
         for plate in qplates:
             fiber, ra, dec,z = readSpAllfile(plate)
@@ -258,14 +316,15 @@ def ProgMain():
             if (len(fiber) < 1):
                 status.append('No BAL quasars included in Plate:{}'.format(plate))
              #   print status
-                html=makehtml(mjd, status)
+                html=makehtml(mjd, status, cat)
             else:
                 for i in range(len(fiber)):
                     print plate,mjd,fiber[i],ra[i],dec[i],z[i]
-                    dupplate,dupmjd,dupfiber=sphereMatch(ra[i],dec[i])
+                    dupplate,dupmjd,dupfiber,dr14index = sphereMatch(ra[i],dec[i])
                     print 'PLATE-MJD-FIBER: {0}-{1}-{2} has {3} entries in DR14 '.format(plate,mjd,fiber[i],len(dupplate))
                     plotSpectra(plate, mjd, fiber[i], dupplate, dupmjd, dupfiber, z[i])
-                    html=makehtml(mjd, status)
+                    cat = makeCatalog(i, dr14index, plate, mjd, fiber[i], cat)
+                    html=makehtml(mjd, status, cat)
                     
     html_dir = os.path.join('HTML',str(mjd))
     html_cmd = 'mkdir {}'.format(html_dir)
