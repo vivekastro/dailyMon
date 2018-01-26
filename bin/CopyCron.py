@@ -15,7 +15,7 @@ filelines=list()
 with open(os.path.join('/Users/vzm83/BALQSO_DailyMonitor/UtahCurrentMJD',htmlfile),'r') as fr:
 	for line in fr:
 		if 'u0992250' in line:
-			line = line.replace('/uufs/astro.utah.edu/common/home/u0992250/BALQSO_DailyMonitor/','')
+			line = line.replace('/uufs/astro.utah.edu/common/home/u0992250/BALQSO_DailyMonitor/','/Users/vzm83/BALQSO_DailyMonitor/')
 		filelines.append(line)
 
 with open(os.path.join('/Users/vzm83/BALQSO_DailyMonitor/UtahCurrentMJD',htmlfile),'w') as fw:
